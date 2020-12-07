@@ -1,24 +1,30 @@
 defmodule Day7 do
 
   def solve1(list) do
-    solve(list, fn map -> iterate_1(map, MapSet.new(["shiny gold"])) |> Enum.count end)
+    map = list |> Enum.map(&String.split(&1, " contain "))
+    # Parse every line of the file
+    |> Enum.map(fn ([part1, part2]) -> {parse_bag(part1), parse_baglist(part2)} end)
+    # Make every pair {child, parent}
+    |> Enum.flat_map(fn {bag, children} -> Enum.map(children, fn {_, child} -> {child, bag} end) end)
+    # Accumulate pairs in map
+    |> Enum.reduce(Map.new(), fn ({child, parent}, acc) -> Map.update(acc, child, [parent], &[parent | &1]) end)
+    |> Map.put("no other", [])
+
+    iterate_1(map, MapSet.new(["shiny gold"])) |> Enum.count |> Kernel.-(1)
   end
 
   def solve2(list) do
-    solve(list, fn map -> iterate_2(map, "shiny gold") end)
-  end
-
-  def solve(list, f) do
     map = list |> Enum.map(&String.split(&1, " contain "))
-         |> Enum.map(fn ([part1, part2]) -> {parse_bag(part1), parse_baglist(part2)} end)
-         |> Map.new
-         |> Map.put("no other", [])
-    f.(map) - 1
+    |> Enum.map(fn ([part1, part2]) -> {parse_bag(part1), parse_baglist(part2)} end)
+    |> Map.new
+    |> Map.put("no other", [])
+
+    iterate_2(map, "shiny gold") - 1
   end
 
   def iterate_1(map, colorset) do
     length = MapSet.size(colorset)
-    new_colorset = colorset |> Enum.flat_map(&find_all_parents(map, &1))
+    new_colorset = colorset |> Enum.flat_map(&Map.get(map, &1, []))
                             |> MapSet.new
                             |> MapSet.union(colorset)
 
@@ -49,15 +55,10 @@ defmodule Day7 do
         |> String.replace(~r/[0-9]/, "")
         |> String.trim
   end
-
-  def find_all_parents(map, color) do
-    map |> Enum.filter(fn {_, valuelist} -> Enum.any?(valuelist, fn {_, v} -> color == v end) end)
-        |> Enum.map(fn {key, _} -> key end)
-  end
 end
 
 
 list = IO.read(:stdio, :all)
         |> String.split("\n", trim: true)
-        |> Day7.solve2
+        |> Day7.solve1
         |> IO.inspect
